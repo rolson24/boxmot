@@ -22,6 +22,8 @@ weights/*_openvino_model
 weights/*.engine
 weights/*.tflite
 
+YOLOX/
+
 # evaluation tools folder
 val_utils/
 assets/MOT17
@@ -36,6 +38,7 @@ assets/MOT17
 *.pth
 *.onnx
 *.engine
+*.tar
 
 # interactive plots
 *.html
