@@ -290,33 +290,46 @@ class IOFTrack(BaseTracker):
         self.prev_gray = None
         self.of_params = dict(pyr_scale=0.5, levels=3, winsize=15, iterations=3, 
                               poly_n=5, poly_sigma=1.2, flags=0) # Farneback params
+        
+    def _calculate_image_optical_flow(self, gray):
+        """Calculates optical flow between the previous grayscale images and the current one."""
+        # First lets get a local copy of the previous frame
+        prev_gray = self.prev_gray
+        # Update the previous frame with the current one
+        self.prev_gray = gray.copy() # Store current frame for next call
 
-    def _calculate_avg_optical_flow(self, gray, bboxes):
-        """Calculates average optical flow vector within bounding boxes."""
-        # Expects bboxes in [x1, y1, x2, y2] format
-        if self.prev_gray is None or not isinstance(bboxes, np.ndarray) or bboxes.shape[0] == 0:
-             # Return empty array with correct shape (N, 2)
-             return np.empty((0, 2), dtype=np.float32) 
+        if prev_gray is None:
 
+            return np.zeros_like(gray, dtype=np.float32)
         try:
             # Ensure gray and prev_gray have the same dimensions
-            if gray.shape != self.prev_gray.shape:
+            if gray.shape != prev_gray.shape:
                 # Handle potential resize issues, e.g., log a warning or resize prev_gray
                 # For now, return empty flow if shapes mismatch significantly
                 print(f"Warning: Frame shape mismatch in optical flow. Prev: {self.prev_gray.shape}, Curr: {gray.shape}")
-                return np.zeros((len(bboxes), 2), dtype=np.float32) # Or empty? Let's return zeros
-
+                return np.zeros_like(gray, dtype=np.float32)
+            # Calculate optical flow using Farneback method
             flow = cv2.calcOpticalFlowFarneback(self.prev_gray, gray, None, **self.of_params)
         except cv2.error as e:
             print(f"OpenCV error calculating Farneback flow: {e}")
             # Return zeros if flow calculation fails
-            return np.zeros((len(bboxes), 2), dtype=np.float32)
+            return np.zeros_like(gray, dtype=np.float32)
         
+        # Return the flow vector
+        return flow
+
+    def _calculate_avg_optical_flow_boxes(self, flow, bboxes):
+        """Calculates average optical flow vector within bounding boxes."""
+        # Expects bboxes in [x1, y1, x2, y2] format
+        if flow is None or not isinstance(bboxes, np.ndarray) or bboxes.shape[0] == 0:
+             # Return empty array with correct shape (N, 2)
+             return np.empty((0, 2), dtype=np.float32) 
+
         avg_flows = []
         for bbox in bboxes:
             x1, y1, x2, y2 = map(int, bbox[:4])
             # Clamp coordinates to be within frame dimensions
-            h, w = gray.shape
+            h, w = flow.shape[:2] # Get height and width of the flow field
             x1 = max(0, min(x1, w - 1))
             y1 = max(0, min(y1, h - 1))
             x2 = max(0, min(x2, w)) # Use w, h for slicing upper bound
@@ -345,10 +358,13 @@ class IOFTrack(BaseTracker):
 
         if n_trk == 0 or n_det == 0 or self.prev_gray is None:
              return cost_of # Return default if no tracks, dets, or previous frame
+        
+        # Calculate optical flow for the current frame
+        current_flow = self._calculate_image_optical_flow(current_gray)
 
         # Calculate average flow for predicted track locations and detection locations
-        trk_avg_flows = self._calculate_avg_optical_flow(current_gray, track_bboxes_pred)
-        det_avg_flows = self._calculate_avg_optical_flow(current_gray, det_bboxes)
+        trk_avg_flows = self._calculate_avg_optical_flow(current_flow, track_bboxes_pred)
+        det_avg_flows = self._calculate_avg_optical_flow(current_flow, det_bboxes)
 
         # Ensure flows were calculated and shapes match number of boxes
         if trk_avg_flows.shape[0] != n_trk or det_avg_flows.shape[0] != n_det:
