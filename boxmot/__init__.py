@@ -12,10 +12,11 @@ from boxmot.trackers.ocsort.ocsort import OcSort
 from boxmot.trackers.strongsort.strongsort import StrongSort
 from boxmot.trackers.imprassoc.imprassoctrack import ImprAssocTrack
 from boxmot.trackers.boosttrack.boosttrack import BoostTrack
+from boxmot.trackers.ioftrack.ioftrack import IOFTrack
 
 
-TRACKERS = ['bytetrack', 'botsort', 'strongsort', 'ocsort', 'deepocsort', 'hybridsort', 'imprassoc', 'boosttrack']
+TRACKERS = ['bytetrack', 'botsort', 'strongsort', 'ocsort', 'deepocsort', 'hybridsort', 'imprassoc', 'boosttrack', 'ioftrack']
 
 __all__ = ("__version__",
-           "StrongSort", "OcSort", "ByteTrack", "BotSort", "DeepOcSort", "HybridSort", "ImprAssocTrack", "BoostTrack",
+           "StrongSort", "OcSort", "ByteTrack", "BotSort", "DeepOcSort", "HybridSort", "ImprAssocTrack", "BoostTrack", "IOFTrack",
            "create_tracker", "get_tracker_config", "gsi")
