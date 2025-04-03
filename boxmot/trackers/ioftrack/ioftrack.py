@@ -363,8 +363,8 @@ class IOFTrack(BaseTracker):
         current_flow = self._calculate_image_optical_flow(current_gray)
 
         # Calculate average flow for predicted track locations and detection locations
-        trk_avg_flows = self._calculate_avg_optical_flow(current_flow, track_bboxes_pred)
-        det_avg_flows = self._calculate_avg_optical_flow(current_flow, det_bboxes)
+        trk_avg_flows = self._calculate_avg_optical_flow_boxes(current_flow, track_bboxes_pred)
+        det_avg_flows = self._calculate_avg_optical_flow_boxes(current_flow, det_bboxes)
 
         # Ensure flows were calculated and shapes match number of boxes
         if trk_avg_flows.shape[0] != n_trk or det_avg_flows.shape[0] != n_det:
