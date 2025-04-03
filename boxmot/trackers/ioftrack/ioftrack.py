@@ -284,10 +284,7 @@ class IOFTrack(BaseTracker):
             self.model = rab.get_backend()
         
         # CMC module
-        if cmc_method.lower() != 'none':
-             self.cmc = SOF(method=cmc_method) # Use Sparse Optical Flow or other from boxmot
-        else:
-             self.cmc = None
+        self.cmc = SOF()
 
         # Optical Flow related state
         self.prev_gray = None
