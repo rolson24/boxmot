@@ -208,7 +208,7 @@ class STrack(BaseTrack):
         return self.smooth_feat
 
 
-class IOFTracker(BaseTracker):
+class IOFTrack(BaseTracker):
     """
     IOF-Tracker: Implements the two-stage spatial-temporal fusion tracking algorithm.
 
