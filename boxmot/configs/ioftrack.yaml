@@ -1,0 +1,65 @@
+# Configuration for IOFTracker
+
+# --- Detection Confidence Thresholds ---
+track_high_thresh:
+  type: uniform
+  default: 0.6        # Default from IOFTracker code/paper
+  range: [0.4, 0.8]   # Range for optimization
+
+track_low_thresh:
+  type: uniform
+  default: 0.1        # Default from IOFTracker code/paper
+  range: [0.05, 0.3]  # Range for optimization
+
+new_track_thresh:
+  type: uniform
+  default: 0.7        # Default from IOFTracker code/paper (often higher than high_thresh)
+  range: [0.5, 0.9]   # Range for optimization
+
+# --- Track Management ---
+track_buffer:
+  type: qrandint
+  default: 30         # Default from IOFTracker code
+  range: [20, 90, 10] # Range [min, max_exclusive, step]
+
+# --- IOF Core Parameters ---
+iou_dist_thresh:
+  type: uniform
+  default: 0.7        # R-IoU threshold (1 - IoU_thresh). Default: IoU match < 0.3 penalized.
+  range: [0.5, 0.9]   # Corresponds to IoU range (0.1 to 0.5)
+
+of_dist_thresh:
+  type: uniform
+  default: 10.0       # Optical Flow Euclidean distance threshold
+  range: [5.0, 50.0]  # Needs tuning based on video/flow magnitude
+
+reid_dist_thresh:     # Renamed from appearance_thresh, corresponds to theta_emb
+  type: uniform
+  default: 0.5        # Appearance (cosine) distance threshold. Default from code/paper.
+  range: [0.2, 0.8]   # Range for optimization
+
+fusion_alpha:         # Renamed from lambda_
+  type: uniform
+  default: 0.8        # Weight for R-IoU cost in fusion. Default from code/paper.
+  range: [0.5, 0.95]  # Range for optimization (usually higher weight on spatial)
+
+theta_fusion:
+  type: uniform
+  default: 0.5        # Fused spatial-temporal cost threshold for Eq 10 gating. Default from code/paper.
+  range: [0.3, 0.8]   # Range for optimization
+
+final_match_thresh:   # Renamed from match_thresh
+  type: uniform
+  default: 0.7        # Final threshold applied after Hungarian on fused cost.
+  range: [0.4, 0.9]   # Range for optimization (higher value is less strict)
+
+# --- General Parameters ---
+cmc_method:
+  type: choice
+  default: sparseOptFlow # Default from IOFTracker code
+  options: ['sparseOptFlow', 'orb', 'ecc', 'none'] # Options supported by boxmot.SOF or None
+
+frame_rate:
+  type: choice
+  default: 30         # Default frame rate assumption
+  options: [30]       # Usually fixed for a dataset
