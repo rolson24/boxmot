@@ -12,7 +12,7 @@ from boxmot.motion.cmc.sof import SOF
 from boxmot.motion.kalman_filters.aabb.xywh_kf import KalmanFilterXYWH # Use this KF
 from boxmot.trackers.imprassoc.basetrack import BaseTrack, TrackState # Use STrack's base and states
 from boxmot.utils.matching import (embedding_distance, iou_distance, 
-                                   linear_assignment) # Use boxmot matching utils
+                                   linear_assignment, _pdist) # Use boxmot matching utils
 from boxmot.utils.ops import xywh2xyxy, xyxy2xywh # Use boxmot coordinate utils
 from boxmot.trackers.basetracker import BaseTracker
 
@@ -325,29 +325,53 @@ class IOFTrack(BaseTracker):
              # Return empty array with correct shape (N, 2)
              return np.empty((0, 2), dtype=np.float32) 
 
+        # avg_flows = []
+        # for bbox in bboxes:
+        #     x1, y1, x2, y2 = map(int, bbox[:4])
+        #     # Clamp coordinates to be within frame dimensions
+        #     h, w = flow.shape[:2] # Get height and width of the flow field
+        #     x1 = max(0, min(x1, w - 1))
+        #     y1 = max(0, min(y1, h - 1))
+        #     x2 = max(0, min(x2, w)) # Use w, h for slicing upper bound
+        #     y2 = max(0, min(y2, h))
+
+        #     if x1 >= x2 or y1 >= y2:
+        #          avg_flows.append(np.array([0.0, 0.0], dtype=np.float32)) # Handle zero-area boxes
+        #          continue
+
+        #     box_flow = flow[y1:y2, x1:x2]
+        #     if box_flow.size == 0:
+        #          avg_flows.append(np.array([0.0, 0.0], dtype=np.float32)) # Handle empty flow region
+        #          continue
+                 
+        #     # Calculate mean flow vector (dx, dy) for the box
+        #     avg_flow_vec = np.mean(box_flow, axis=(0, 1), dtype=np.float32)
+        #     avg_flows.append(avg_flow_vec)
+            
+
+        # Vectorized version for performance
+        # clamp bboxes to be within the flow field dimensions
+        h, w = flow.shape[:2]
+        bboxes[:, 0] = np.clip(bboxes[:, 0], 0, w - 1)
+        bboxes[:, 1] = np.clip(bboxes[:, 1], 0, h - 1)
+        bboxes[:, 2] = np.clip(bboxes[:, 2], 0, w)
+        bboxes[:, 3] = np.clip(bboxes[:, 3], 0, h)
+        # Calculate average flow for each bounding box
         avg_flows = []
         for bbox in bboxes:
             x1, y1, x2, y2 = map(int, bbox[:4])
-            # Clamp coordinates to be within frame dimensions
-            h, w = flow.shape[:2] # Get height and width of the flow field
-            x1 = max(0, min(x1, w - 1))
-            y1 = max(0, min(y1, h - 1))
-            x2 = max(0, min(x2, w)) # Use w, h for slicing upper bound
-            y2 = max(0, min(y2, h))
-
             if x1 >= x2 or y1 >= y2:
-                 avg_flows.append(np.array([0.0, 0.0], dtype=np.float32)) # Handle zero-area boxes
-                 continue
-
+                avg_flows.append(np.array([0.0, 0.0], dtype=np.float32))
+                continue
             box_flow = flow[y1:y2, x1:x2]
             if box_flow.size == 0:
-                 avg_flows.append(np.array([0.0, 0.0], dtype=np.float32)) # Handle empty flow region
-                 continue
-                 
+                avg_flows.append(np.array([0.0, 0.0], dtype=np.float32))
+                continue
             # Calculate mean flow vector (dx, dy) for the box
             avg_flow_vec = np.mean(box_flow, axis=(0, 1), dtype=np.float32)
             avg_flows.append(avg_flow_vec)
-            
+
+
         return np.array(avg_flows, dtype=np.float32) if avg_flows else np.empty((0, 2), dtype=np.float32)
 
     def _calculate_of_cost(self, track_bboxes_pred, det_bboxes, current_gray):
@@ -372,11 +396,14 @@ class IOFTrack(BaseTracker):
              return cost_of # Return default if calculation failed
 
         # Calculate pairwise Euclidean distance
-        for i in range(n_trk):
-             for j in range(n_det):
-                 # Euclidean distance between the two average flow vectors
-                 flow_dist = np.linalg.norm(trk_avg_flows[i] - det_avg_flows[j])
-                 cost_of[i, j] = flow_dist
+        # for i in range(n_trk):
+        #      for j in range(n_det):
+        #          # Euclidean distance between the two average flow vectors
+        #          flow_dist = np.linalg.norm(trk_avg_flows[i] - det_avg_flows[j])
+        #          cost_of[i, j] = flow_dist
+
+        # Use vectorized operation for efficiency
+        cost_of = _pdist(trk_avg_flows, det_avg_flows)
                  
         return cost_of
 
