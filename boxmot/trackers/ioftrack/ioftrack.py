@@ -247,6 +247,7 @@ class IOFTrack(BaseTracker):
         fusion_alpha: float = 0.8,     # Weight for R-IoU in fusion
         theta_fusion: float = 0.5,     # Fused ST cost threshold for gating (Eq 10)
         final_match_thresh: float = 0.7, # Final cost threshold after Hungarian
+        optical_flow_speed: str = "slow", # "slow", "fast", "very_fast"
         # General params from BaseTracker/ImprAssocTrack
         track_buffer: int = 30,
         cmc_method: str = "sparseOptFlow",
@@ -288,8 +289,39 @@ class IOFTrack(BaseTracker):
 
         # Optical Flow related state
         self.prev_gray = None
-        self.of_params = dict(pyr_scale=0.5, levels=3, winsize=15, iterations=3, 
-                              poly_n=5, poly_sigma=1.2, flags=0) # Farneback params
+
+        if optical_flow_speed == "slow":
+            self.of_params = dict(
+                pyr_scale=0.5, 
+                levels=3, 
+                winsize=15, 
+                iterations=3, 
+                poly_n=5, 
+                poly_sigma=1.2, 
+                flags=0
+            ) # Farneback params
+        elif optical_flow_speed == "fast":
+            # --- Option A: Faster Parameters (Moderate Speedup) ---
+            self.of_params = dict(
+                pyr_scale=0.5,
+                levels=2,       # Reduced levels
+                winsize=11,     # Reduced window size
+                iterations=2,   # Reduced iterations
+                poly_n=5,
+                poly_sigma=1.1, # Adjusted sigma slightly for smaller window? (Often 1.1-1.5 for n=5)
+                flags=0
+            )
+        elif optical_flow_speed == "very_fast":
+            # --- Option B: Even Faster Parameters (Significant Speedup, Less Accurate) ---
+            self.of_params = dict(
+                pyr_scale=0.5,
+                levels=1,       # Minimum levels
+                winsize=9,      # Smaller window
+                iterations=1,   # Minimum iterations
+                poly_n=5,
+                poly_sigma=1.1,
+                flags=0
+            )
         
     def _calculate_image_optical_flow(self, gray):
         """Calculates optical flow between the previous grayscale images and the current one."""
@@ -309,7 +341,28 @@ class IOFTrack(BaseTracker):
                 print(f"Warning: Frame shape mismatch in optical flow. Prev: {self.prev_gray.shape}, Curr: {gray.shape}")
                 return np.zeros_like(gray, dtype=np.float32)
             # Calculate optical flow using Farneback method
-            flow = cv2.calcOpticalFlowFarneback(self.prev_gray, gray, None, **self.of_params)
+            # flow = cv2.calcOpticalFlowFarneback(self.prev_gray, gray, None, **self.of_params)
+
+            # In your update method or _calculate_avg_optical_flow:
+            resize_factor = 0.5 # Example: Calculate on image half the size
+            new_width = int(gray.shape[1] * resize_factor)
+            new_height = int(gray.shape[0] * resize_factor)
+            dim = (new_width, new_height)
+
+            # Resize current and previous frames
+            resized_current_gray = cv2.resize(gray, dim, interpolation=cv2.INTER_LINEAR)
+            resized_prev_gray = cv2.resize(prev_gray, dim, interpolation=cv2.INTER_LINEAR)
+
+            # Calculate flow on smaller images
+            flow_resized = cv2.calcOpticalFlowFarneback(resized_prev_gray, resized_current_gray, None, **self.of_params) # Or **self.of_params_fast
+
+            # IMPORTANT: Scale the resulting flow vectors back up
+            flow = flow_resized * (1.0 / resize_factor) 
+
+            # Also, resize the *full* flow map back to original size if needed for pixel indexing,
+            # OR adjust bbox coordinates *before* extracting flow from the resized map.
+            # Easiest is often to resize the full flow map back:
+            flow = cv2.resize(flow, (gray.shape[1], gray.shape[0]), interpolation=cv2.INTER_LINEAR)
         except cv2.error as e:
             print(f"OpenCV error calculating Farneback flow: {e}")
             # Return zeros if flow calculation fails
