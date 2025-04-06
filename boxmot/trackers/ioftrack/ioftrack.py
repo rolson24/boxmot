@@ -247,7 +247,7 @@ class IOFTrack(BaseTracker):
         fusion_alpha: float = 0.8,     # Weight for R-IoU in fusion
         theta_fusion: float = 0.5,     # Fused ST cost threshold for gating (Eq 10)
         final_match_thresh: float = 0.7, # Final cost threshold after Hungarian
-        optical_flow_speed: str = "slow", # "slow", "fast", "very_fast"
+        optical_flow_speed: str = "very_fast", # "slow", "fast", "very_fast"
         # General params from BaseTracker/ImprAssocTrack
         track_buffer: int = 30,
         cmc_method: str = "sparseOptFlow",
